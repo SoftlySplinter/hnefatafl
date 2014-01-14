@@ -29,13 +29,13 @@ Crafty.c('Actor', {
 
 Crafty.c('BlackHunn', {
   init: function() {
-    this.requires('Actor, Color').color('rgb(0,0,0)')
+    this.requires('Actor, Color').color('rgb(0,0,0)');
   }
 });
 
 Crafty.c('WhiteHunn', {
   init: function() {
-    this.requires('Actor, Color').color('rgb(255,255,255)')
+    this.requires('Actor, Color').color('rgb(255,255,255)');
   }
 });
 
