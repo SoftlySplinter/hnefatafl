@@ -1,0 +1,13 @@
+* {
+  padding: 0px;
+  margin: 0px;
+}
+
+body {
+  background-color: black;
+  text-align: center;
+}
+
+#game {
+  margin-top: 50px;
+}
