@@ -4,12 +4,33 @@ var tSize = 40;
 var borderSize = tSize;
 var iSize = tSize/10;
 
+var defaultB = 
+[
+'c', ' ', ' ', 'b', 'b', 'b', 'b', 'b', ' ', ' ', 'c',
+' ', ' ', ' ', ' ', ' ', 'b', ' ', ' ', ' ', ' ', ' ',
+' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+'b', ' ', ' ', ' ', ' ', 'w', ' ', ' ', ' ', ' ', 'b',
+'b', ' ', ' ', ' ', 'w', 'w', 'w', ' ', ' ', ' ', 'b',
+'b', 'b', ' ', 'w', 'w', 'W', 'w', 'w', ' ', 'b', 'b',
+'b', ' ', ' ', ' ', 'w', 'w', 'w', ' ', ' ', ' ', 'b',
+'b', ' ', ' ', ' ', ' ', 'w', ' ', ' ', ' ', ' ', 'b',
+' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
+' ', ' ', ' ', ' ', ' ', 'b', ' ', ' ', ' ', ' ', ' ',
+'c', ' ', ' ', 'b', 'b', 'b', 'b', 'b', ' ', ' ', 'c'
+]
+
+var board;
+
 function Tile(x, y, size) {
   this.x = x;
   this.y = y;
   this.size = size
   this.isDirty = true;
   this.entities = new Array();
+}
+
+Tile.prototype.empty = function() {
+  return this.entities.length == 0;
 }
 
 Tile.prototype.render = function(ctx) {
@@ -62,9 +83,79 @@ Entity.prototype.render = function(ctx) {
   if(!this.isDirty) {
     return;
   }
-  ctx.fillStyle = 'rgb(255, 255, 255)';
-  ctx.fillRect(this.x * tSize, this.y * tSize, tSize, tSize);
+  this.doRender(ctx);
   this.isDirty = false;
+}
+
+Entity.prototype.doRender = function(ctx) {
+  console.error("Should be implemented by subclasses");
+}
+
+function Hunn(x, y, colour) {
+  Entity.call(this, x, y);
+  this.colour = colour;
+}
+
+Entity.prototype.validMoves = function(ctx) {
+  return new Array();
+}
+
+Hunn.prototype = new Entity();
+Hunn.prototype.constructor = Hunn;
+
+Hunn.prototype.doRender = function(ctx) {
+  switch(this.colour) {
+  case 'w':
+    ctx.fillStyle = 'rgb(255, 255, 255)';
+    break;
+  case 'b':
+    ctx.fillStyle = 'rgb(0, 0, 0)';
+    break;
+  default:
+    ctx.fillStyle = 'rgba(0, 0, 0, 255)'
+  }
+  ctx.fillRect(this.x * tSize + (tSize * 3 / 8), this.y * tSize + (tSize * 3 / 8), tSize / 4, tSize / 4);
+}
+
+
+Hunn.prototype.validMoves = function() {
+  connected = function(tile, entity) {
+    sX = Math.min(tile.x, entity.x);
+    eX = Math.max(tile.x, entity.x);
+    sY = Math.min(tile.y, entity.y);
+    eY = Math.max(tile.y, entity.y);
+    return board.tiles.filter(function(elem) { 
+      return elem.x >= sX && elem.x <= eX && elem.y >= sY && elem.y <= eY; 
+    }).filter(function(elem) { return elem.empty() });
+  }
+
+  return board.tiles.filter(function(tile) {
+    return (tile.x == this.x || tile.y == this.y) && connected(tile, this);
+  }, this);
+}
+
+function King(x, y) {
+  Hunn.call(this, x, y, 'w');
+}
+
+King.prototype = new Hunn();
+King.prototype.constructor = King;
+
+King.prototype.doRender = function(ctx) {
+  ctx.fillStyle = 'rgb(255, 255, 255)';
+  ctx.fillRect(this.x * tSize + (tSize / 4), this.y * tSize + (tSize / 4), tSize / 2, tSize / 2);
+}
+
+function Castle(x, y) {
+  Entity.call(this, x, y);
+}
+
+Castle.prototype = new Entity();
+Castle.prototype.constructor = Castle;
+
+Castle.prototype.doRender = function(ctx) {
+  ctx.fillStyle = 'rgb(100, 100, 100)';
+  ctx.fillRect(this.x * tSize + (tSize / 4), this.y * tSize + (tSize / 4), tSize / 2, tSize / 2);
 }
 
 function Board() {
@@ -76,45 +167,78 @@ function Board() {
   for(i = 0; i < this.width; i++) {
     for(j = 0; j < this.height; j++) {
       this.tiles[i + j * 11] = (new Tile(i, j, tSize));
+      entity = null;
+      switch(defaultB[i + j * 11]) {
+      case 'w': // Fallthrough intended.
+      case 'b':
+        entity = new Hunn(i, j, defaultB[i + j * 11]);
+        break;
+      case 'W':
+        entity = new King(i, j);
+        break;
+      case 'c':
+        entity = new Castle(i, j);
+        break;
+      default:
+        break;
+      }
+
+      if(entity != null) {
+        this.tiles[i + j * 11].entities.push(entity);
+      }
     }
   }
+}
 
-  this.tempEntity = new Entity(0, 0);
-  this.tiles[0].entities.push(this.tempEntity);
-
-  console.log(this.tiles);
+Board.prototype.tileAt = function(x, y) {
+  return this.tiles[x + y * 11];
 }
 
 Board.prototype.render = function() {
   this.tiles.forEach(function(elem) { elem.render(this.ctx) }, this);
+}
 
-  // TODO This is just a trippy example :-)
-  this.move(this.tempEntity.x, this.tempEntity.y, (this.tempEntity.x + 1) % 11,
-this.tempEntity.x >= 10 ? (this.tempEntity.y + 1) % 11 : this.tempEntity.y);
+Board.prototype.control = function() {
+  if(!this.tileAt(0, 3).empty()) {
+    this.move(0, 3, 1, 3);
+  } else if(!this.tileAt(1, 3).empty()) {
+    this.move(1, 3, 0, 3);
+  } else {
+    console.error("Arg :-(");
+  }
 }
 
 Board.prototype.move = function(x1, y1, x2, y2) {
-  from = this.tiles[x1 + y1 * 11];
-  to = this.tiles[x2 + y2 * 11];
+  from = this.tileAt(x1, y1);
+  to = this.tileAt(x2, y2);
   entity = from.entities.pop();
-  entity.x = x2;
-  entity.y = y2;
 
-  to.entities.push(entity);
+  if(entity == undefined) return;
 
-  from.isDirty = true;
-  entity.isDirty = true;
-  to.isDirty = true;
+  if(entity.validMoves().some(function(elem) {
+    return elem.x == x2 && elem.y == y2;
+  })) {
+    entity.x = x2;
+    entity.y = y2;
+
+    to.entities.push(entity);
+
+    from.isDirty = true;
+    entity.isDirty = true;
+    to.isDirty = true;
+  } else {
+    from.entities.push(entity);
+  }
 }
+
 
 function init() {
   canvas = document.getElementById("game");
   canvas.width = 11 * tSize;
   canvas.height = 11 * tSize;
   board = new Board();
-  setInterval(function() {
-    board.render();
-  }, 33)
+  setInterval(function() { board.render() }, 33);
+  setInterval(function() { board.control() }, 1000);
 }
 
 
