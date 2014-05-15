@@ -1,7 +1,6 @@
 var canvas = null;
 
 var tSize = 40;
-var borderSize = tSize;
 var iSize = tSize/10;
 
 var defaultB = 
@@ -289,6 +288,8 @@ Board.prototype.move = function(x1, y1, x2, y2) {
 
 function init() {
   canvas = document.getElementById("game");
+  tSize = Math.min((window.innerWidth - 50) / 11, (window.innerHeight - 50) / 11);
+  iSize = tSize / 10;
   canvas.width = 11 * tSize;
   canvas.height = 11 * tSize;
   board = new Board();
