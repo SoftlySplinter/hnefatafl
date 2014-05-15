@@ -288,7 +288,7 @@ Board.prototype.move = function(x1, y1, x2, y2) {
 
 function init() {
   canvas = document.getElementById("game");
-  tSize = Math.min((window.innerWidth - 50) / 11, (window.innerHeight - 50) / 11);
+  tSize = Math.min((window.innerWidth - 10) / 11, (window.innerHeight - 10) / 11);
   iSize = tSize / 10;
   canvas.width = 11 * tSize;
   canvas.height = 11 * tSize;
