@@ -27,6 +27,7 @@ function Tile(x, y, size) {
   this.size = size
   this.isDirty = true;
   this.entities = new Array();
+  this.overlay = 'rgba(0, 0, 0, 0)';
 }
 
 Tile.prototype.empty = function() {
@@ -71,6 +72,14 @@ Tile.prototype.render = function(ctx) {
   this.isDirty = false;
 
   this.entities.forEach(function(elem) { elem.render(ctx); });
+
+  ctx.fillStyle = this.overlay;
+  ctx.fillRect(this.x * this.size, this.y * this.size, this.size, this.size);
+}
+
+Tile.prototype.dirty = function() {
+  this.isDirty = true;
+  this.entities.forEach(function(elem) { elem.isDirty = true; });
 }
 
 function Entity(x, y) {
@@ -120,13 +129,13 @@ Hunn.prototype.doRender = function(ctx) {
 
 Hunn.prototype.validMoves = function() {
   connected = function(tile, entity) {
-    sX = Math.min(tile.x, entity.x);
-    eX = Math.max(tile.x, entity.x);
-    sY = Math.min(tile.y, entity.y);
-    eY = Math.max(tile.y, entity.y);
+    sX = Math.min(tile.x, entity.x + 1);
+    eX = Math.max(tile.x, entity.x - 1);
+    sY = Math.min(tile.y, entity.y + 1);
+    eY = Math.max(tile.y, entity.y - 1);
     return board.tiles.filter(function(elem) { 
       return elem.x >= sX && elem.x <= eX && elem.y >= sY && elem.y <= eY; 
-    }).filter(function(elem) { return elem.empty() });
+    }).every(function(elem) { return elem.empty() });
   }
 
   return board.tiles.filter(function(tile) {
@@ -163,6 +172,8 @@ function Board() {
   this.height = 11;
   this.tiles = new Array();
   this.ctx = canvas.getContext('2d');
+  this.selected = null;
+  this.prevSelected = null;
 
   for(i = 0; i < this.width; i++) {
     for(j = 0; j < this.height; j++) {
@@ -195,17 +206,61 @@ Board.prototype.tileAt = function(x, y) {
 }
 
 Board.prototype.render = function() {
+  if(this.selected != this.prevSelected) {
+    toHighlight = this.tiles;
+    if(this.selected != null) {
+      toHighlight = this.selected.entities[0].validMoves();
+      toHighlight.push(this.selected);
+    }
+    this.prevSelected = this.selected;
+    this.highlight(toHighlight);
+  }
+
   this.tiles.forEach(function(elem) { elem.render(this.ctx) }, this);
 }
 
-Board.prototype.control = function() {
-  if(!this.tileAt(0, 3).empty()) {
-    this.move(0, 3, 1, 3);
-  } else if(!this.tileAt(1, 3).empty()) {
-    this.move(1, 3, 0, 3);
-  } else {
-    console.error("Arg :-(");
+Board.prototype.highlight = function(highlight) {
+  this.tiles.forEach(function(tile) {
+    if(highlight.indexOf(tile) != -1) {
+      tile.overlay = 'rgba(0, 0, 0, 0.0)';
+    } else {
+      tile.overlay = 'rgba(0, 0, 0, 0.4)';
+    }
+    tile.dirty();
+  }); 
+}
+
+Board.prototype.dirty = function() {
+  this.tiles.forEach(function(tile) { tile.dirty() });
+}
+
+Board.prototype.control = function(e) {
+  dim = canvas.getBoundingClientRect();
+  x = Math.floor((e.x - dim.left) / tSize);
+  y = Math.floor((e.y - dim.top) / tSize);
+
+  this.select(x, y);
+}
+
+Board.prototype.select = function(x, y) {
+  if(this.selected == null) {
+    if(!this.tileAt(x, y).empty()) {
+      this.selected = this.tileAt(x, y);
+    }
+    this.dirty();
+    return;
   }
+
+  if(this.selected.x == x && this.selected.y == y) {
+    this.selected = null;
+    return;
+  }
+
+  moves = this.selected.entities[0].validMoves();
+  if(moves.some(function(elem) { return elem.x == x && elem.y == y; })) {
+    this.move(this.selected.x, this.selected.y, x, y);
+  }
+  this.selected = null;
 }
 
 Board.prototype.move = function(x1, y1, x2, y2) {
@@ -238,7 +293,10 @@ function init() {
   canvas.height = 11 * tSize;
   board = new Board();
   setInterval(function() { board.render() }, 33);
-  setInterval(function() { board.control() }, 1000);
+
+  canvas.addEventListener('click', function(e) {
+    board.control(e);
+  }, false);
 }
 
 
